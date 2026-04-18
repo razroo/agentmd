@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="assets/logo.svg" alt="agentmd" width="300">
+</p>
+
 # agentmd
 
 A structured-markdown format and CLI for writing LLM agent prompts — with a
@@ -320,4 +324,15 @@ examples/
 
 tests/              node:test suites
 bin/agentmd         tsx entry shim
+assets/
+  logo.svg          wordmark
+  mark.svg          square mark (avatar / social image)
 ```
+
+## Brand
+
+- Primary: teal `#0F766E` (the bracketed `[md]` in the wordmark, and the
+  background of the square mark)
+- Secondary: slate `#374151` (the "agent" portion of the wordmark)
+- Motif: `[md]` rendered in the same bracket shape used for rule IDs
+  (`[H1]`, `[D1]`) — the brackets are the format's signature.
