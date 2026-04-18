@@ -1,0 +1,26 @@
+{
+  "name": "better-markdown",
+  "version": "0.1.0",
+  "description": "Structured markdown + adherence testing for LLM agent prompts",
+  "type": "module",
+  "bin": {
+    "bmd": "./bin/bmd"
+  },
+  "scripts": {
+    "bmd": "tsx src/cli.ts",
+    "test": "node --test --import tsx tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,38 @@
+import { readFileSync } from "node:fs";
+import YAML from "yaml";
+import type { Expectation } from "./checks.ts";
+
+export interface FixtureCase {
+  name: string;
+  input: unknown;
+  expectations: Expectation[];
+}
+
+export interface Fixtures {
+  agent?: string;
+  cases: FixtureCase[];
+}
+
+export function loadFixtures(path: string): Fixtures {
+  const raw = readFileSync(path, "utf8");
+  const parsed = YAML.parse(raw);
+  if (!parsed || !Array.isArray(parsed.cases)) {
+    throw new Error(`Fixture file ${path} must have a top-level "cases:" array`);
+  }
+  for (const c of parsed.cases) {
+    if (!c.name) throw new Error(`A case in ${path} is missing a "name:" field`);
+    if (!Array.isArray(c.expectations)) {
+      throw new Error(`Case "${c.name}" in ${path} is missing an "expectations:" array`);
+    }
+    for (const e of c.expectations) {
+      if (!e.rule) throw new Error(`Expectation in case "${c.name}" is missing "rule:"`);
+      if (!e.check) throw new Error(`Expectation for rule [${e.rule}] in case "${c.name}" is missing "check:"`);
+    }
+  }
+  return parsed as Fixtures;
+}
+
+export function formatInput(input: unknown): string {
+  if (typeof input === "string") return input;
+  return YAML.stringify(input).trimEnd();
+}
