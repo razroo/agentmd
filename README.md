@@ -1,3 +1,16 @@
+# ARCHIVED — moved to [razroo/iso](https://github.com/razroo/iso)
+
+> [!IMPORTANT]
+> **This repository has been archived.** Development continues in the
+> [razroo/iso](https://github.com/razroo/iso) monorepo at
+> [`packages/agentmd`](https://github.com/razroo/iso/tree/main/packages/agentmd).
+>
+> The published npm package **`@razroo/agentmd`** is unaffected — install
+> and usage stay exactly the same. File issues and PRs against
+> [razroo/iso](https://github.com/razroo/iso/issues).
+
+---
+
 <p align="left">
   <img src="assets/logo.svg" alt="agentmd" width="300">
 </p>
