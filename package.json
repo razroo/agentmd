@@ -9,7 +9,10 @@
   "scripts": {
     "agentmd": "tsx src/cli.ts",
     "test": "node --test --import tsx tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint:examples": "tsx src/cli.ts lint examples/outreach-writer.md && tsx src/cli.ts lint examples/minimal.md",
+    "lint:isolint": "sh -c 'if command -v isolint >/dev/null 2>&1; then tsx src/cli.ts render examples/outreach-writer.md | isolint lint - && tsx src/cli.ts render examples/minimal.md | isolint lint -; else echo \"isolint not installed — skipping prose lint (install from https://github.com/razroo/isolint to enable)\"; fi'",
+    "ci": "npm run typecheck && npm test && npm run lint:examples && npm run lint:isolint"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",

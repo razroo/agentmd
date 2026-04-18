@@ -68,7 +68,13 @@ export async function runCheck(
     }
     case "regex": {
       const pattern = String(exp.value);
-      const re = new RegExp(pattern);
+      let re: RegExp;
+      try {
+        re = new RegExp(pattern);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { passed: false, detail: `invalid regex /${pattern}/: ${msg}` };
+      }
       const matches = re.test(output);
       return { passed: matches, detail: matches ? `matched /${pattern}/` : `did not match /${pattern}/` };
     }

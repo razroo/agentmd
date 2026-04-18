@@ -97,3 +97,52 @@ test("extractIdReferences finds bracketed ids", () => {
     ["H1", "D2"],
   );
 });
+
+test("parse: multiline rule claim before why:", () => {
+  const src = `# Agent: a
+
+## Hard limits
+
+- [H1] first line of the claim
+  second line that wraps
+  third line still in the claim
+  why: the reason
+
+## Procedure
+
+1. step
+`;
+  const doc = parse(src);
+  assert.equal(doc.hardLimits.length, 1);
+  assert.equal(
+    doc.hardLimits[0].claim,
+    "first line of the claim second line that wraps third line still in the claim",
+  );
+  assert.equal(doc.hardLimits[0].why, "the reason");
+});
+
+test("parse: routing table with non-canonical header", () => {
+  const src = `# Agent: a
+
+## Hard limits
+
+- [H1] thing
+  why: reason
+
+## Procedure
+
+1. step
+
+## Routing
+
+| Scenario | Behavior |
+|----------|----------|
+| IC engineer | technical framing |
+| otherwise | business framing |
+`;
+  const doc = parse(src);
+  assert.equal(doc.routing.length, 2);
+  assert.equal(doc.routing[0].when, "IC engineer");
+  assert.equal(doc.routing[0].then, "technical framing");
+  assert.equal(doc.routing[1].when, "otherwise");
+});

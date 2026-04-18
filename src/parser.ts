@@ -43,6 +43,8 @@ export function parse(source: string, sourcePath?: string): Doc {
   let currentSection: SectionKind = "none";
   let currentHeading = "";
   let contextBuf: string[] = [];
+  let routingSawSeparator = false;
+  let routingFirstRow = true;
 
   const flushContext = () => {
     if (currentSection === "context" && currentHeading) {
@@ -70,6 +72,10 @@ export function parse(source: string, sourcePath?: string): Doc {
       flushContext();
       currentHeading = h2Match[1].trim();
       currentSection = classifyHeading(currentHeading);
+      if (currentSection === "routing") {
+        routingSawSeparator = false;
+        routingFirstRow = true;
+      }
       i++;
       continue;
     }
@@ -85,23 +91,21 @@ export function parse(source: string, sourcePath?: string): Doc {
       const ruleMatch = line.match(RULE_LINE);
       if (ruleMatch) {
         const id = ruleMatch[1];
-        const claim = ruleMatch[2].trim();
+        const claimParts: string[] = [ruleMatch[2].trim()];
         let why: string | null = null;
-        // Peek forward for a why: on a following indented line
         let j = i + 1;
         while (j < lines.length) {
           const next = lines[j];
           if (!next.trim()) break;
+          if (next.match(RULE_LINE)) break;
           const whyMatch = next.match(WHY_LINE);
           if (whyMatch) {
             why = whyMatch[1].trim();
             j++;
             break;
           }
-          // Another rule starting → stop
-          if (next.match(RULE_LINE)) break;
-          // Any other indented continuation extends the claim
           if (/^\s+/.test(next)) {
+            claimParts.push(next.trim());
             j++;
             continue;
           }
@@ -112,7 +116,7 @@ export function parse(source: string, sourcePath?: string): Doc {
         const rule: Rule = {
           id,
           scope: declaredScope ?? scope,
-          claim,
+          claim: claimParts.join(" "),
           why,
           line: lineNo,
         };
@@ -140,6 +144,8 @@ export function parse(source: string, sourcePath?: string): Doc {
 
     if (currentSection === "routing") {
       if (line.match(TABLE_SEP)) {
+        routingSawSeparator = true;
+        routingFirstRow = false;
         i++;
         continue;
       }
@@ -147,18 +153,20 @@ export function parse(source: string, sourcePath?: string): Doc {
       if (rowMatch) {
         const cells = rowMatch[1].split("|").map((c) => c.trim());
         if (cells.length >= 2) {
-          // Skip header row — we detect it by checking the first row we see
-          // has cells that look like "When" / "Do" / "If" / etc.
-          const headerCandidate = cells[0].toLowerCase();
-          if (
-            (doc.routing.length === 0 &&
-              (headerCandidate === "when" ||
-                headerCandidate === "if" ||
-                headerCandidate === "condition"))
-          ) {
-            i++;
-            continue;
+          // Standard markdown pipe tables: the row before the |---| separator
+          // is the header. Peek ahead: if the next non-empty line is a
+          // separator, this row is the header — skip it regardless of its
+          // text.
+          if (routingFirstRow && !routingSawSeparator) {
+            let k = i + 1;
+            while (k < lines.length && !lines[k].trim()) k++;
+            if (k < lines.length && lines[k].match(TABLE_SEP)) {
+              routingFirstRow = false;
+              i++;
+              continue;
+            }
           }
+          routingFirstRow = false;
           doc.routing.push({
             when: cells[0],
             then: cells[1],

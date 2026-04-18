@@ -254,16 +254,20 @@ guessing whether the changes helped.
 ## CLI
 
 ```
-agentmd lint <file>
+agentmd new <name> [--dir <path>]
+agentmd lint <file> [--watch]
 agentmd render <file> [--out <path>]
-agentmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>]
+agentmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>] [--watch]
 ```
 
+- `new` — scaffold `<name>.md` + `fixtures/<name>.yml` as a starting point.
 - `lint` — structural checks (see below). Exits non-zero on errors.
 - `render` — emit the compiled prompt (what the model sees). `render` adds
   explicit "must never be violated" / "may be overridden…" scope labels.
 - `test` — run fixture cases through the compiled prompt and report per-rule
   adherence.
+
+Add `--watch` to `lint` or `test` to re-run on file changes.
 
 ### Test backends
 
@@ -280,6 +284,34 @@ login, so no API key needed. The runner passes:
 
 Caveat: a user-level `~/.claude/CLAUDE.md` may still load. If that matters,
 use `--via api`.
+
+## Works with isolint
+
+agentmd checks **structure** — rule IDs, cross-references, fallback rows,
+scope labels. [isolint](https://github.com/razroo/isolint) checks **prose** —
+phrases weak small models can't reliably parse (`should`, `when relevant`,
+`one of the usual categories`), unclosed `etc.` lists, overlong sentences,
+taste words. The two look at different failure modes and compose naturally:
+agentmd won't tell you a rule claim is mushy; isolint won't tell you there's
+a dangling `[D4]` reference.
+
+The recommended pipeline — structure first, prose second, adherence last:
+
+```
+agentmd lint agent.md                            # structural bugs
+agentmd render agent.md --out compiled.md
+isolint lint compiled.md                         # prose bugs
+agentmd test agent.md --fixtures fixtures.yml    # measured adherence
+```
+
+Load-bearing interop: isolint recognises agentmd-dialect files (by the
+`# Agent: <name>` H1) and deliberately skips its
+`perf-rationale-in-shared-prefix` rule on them — agentmd treats `why:` lines
+as context the model uses to judge edge cases, and stripping them would
+defeat that.
+
+Run both in CI via `npm run ci` (`lint:isolint` no-ops gracefully if isolint
+isn't on `PATH`).
 
 ## Lint rules
 
@@ -338,6 +370,9 @@ serialised as YAML (objects). Each expectation ties a rule ID to a check.
 ("does the opener reference the prospect's company?"). Keep the judge prompt
 narrow and binary.
 
+`examples/fixtures/minimal.yml` exercises every check type in one file and is
+a good starting template.
+
 **Convention: `yes` must always mean the rule was followed.** Phrase the
 judge question positively: *"Does the email avoid fabricating metrics?"*
 rather than *"Does the email fabricate metrics?"* — otherwise `passed=true`
@@ -371,8 +406,9 @@ thing you can actually go fix.
 ## Dev
 
 ```
-npm test          # node:test suites for parser, linter, checks, runner
+npm test          # node:test suites for parser, linter, checks, runner, fixtures
 npm run typecheck # tsc --noEmit
+npm run ci        # typecheck + test + lint:examples + optional isolint pass
 ```
 
 The runner takes an `AgentFn` and optional `JudgeFn` by injection, so tests

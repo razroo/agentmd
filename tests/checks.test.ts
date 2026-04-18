@@ -65,3 +65,12 @@ test("llm_judge without judge fails informatively", async () => {
   assert.equal(r.passed, false);
   assert.match(r.detail, /judge/);
 });
+
+test("regex check with invalid pattern fails gracefully", async () => {
+  const r = await runCheck(
+    { rule: "D1", check: "regex", value: "[" },
+    "anything",
+  );
+  assert.equal(r.passed, false);
+  assert.match(r.detail, /invalid regex/);
+});

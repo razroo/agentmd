@@ -49,6 +49,13 @@ export function formatReport(result: RunResult, opts: FormatOptions = {}): strin
     const flag = pct === 100 ? "" : pct >= 75 ? "  ~" : "  ← attention";
     out.push(`  [${r}] ${passed}/${total} (${pct}%)${flag}`);
   }
+
+  const defined = result.definedRules ?? [];
+  const untested = defined.filter((id) => !byRule.has(id));
+  if (untested.length) {
+    out.push("");
+    out.push(`untested rules (no fixture expectations): ${untested.map((r) => `[${r}]`).join(", ")}`);
+  }
   out.push("");
 
   const totalChecks = [...byRule.values()].reduce((s, e) => s + e.total, 0);
