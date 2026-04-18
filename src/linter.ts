@@ -148,6 +148,44 @@ export function lint(doc: Doc): Diagnostic[] {
     }
   }
 
+  // L10: rules defined but never referenced in procedure or routing prose.
+  // The "why:" itself isn't scanned — a rule pointing only at its own
+  // rationale is still an orphan from the agent's perspective.
+  const referencedIds = new Set<string>();
+  for (const step of doc.procedure) {
+    for (const id of extractIdReferences(step.text)) referencedIds.add(id);
+  }
+  for (const row of doc.routing) {
+    for (const id of extractIdReferences(row.when)) referencedIds.add(id);
+    for (const id of extractIdReferences(row.then)) referencedIds.add(id);
+  }
+  for (const id of extractIdReferences(doc.description)) referencedIds.add(id);
+  for (const r of allRules) {
+    if (!referencedIds.has(r.id)) {
+      diags.push({
+        code: "L10",
+        severity: "warning",
+        message: `[${r.id}] is defined but never referenced in the Procedure or Routing — wire it into a step or drop it`,
+        line: r.line,
+      });
+    }
+  }
+
+  // L11: rationale thinner than ~5 words can't actually guide edge-case
+  // judgement. A one- or two-word why: defeats the design.
+  for (const r of allRules) {
+    if (!r.why) continue;
+    const words = r.why.trim().split(/\s+/).filter(Boolean).length;
+    if (words > 0 && words < 5) {
+      diags.push({
+        code: "L11",
+        severity: "warning",
+        message: `[${r.id}] why: is only ${words} word${words === 1 ? "" : "s"} — state a concrete motivation the model can use to judge edge cases`,
+        line: r.line,
+      });
+    }
+  }
+
   return diags;
 }
 

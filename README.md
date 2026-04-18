@@ -112,9 +112,10 @@ company context, produce a short, specific email that earns a reply.
 ## Procedure
 
 1. Read the prospect profile; identify role, seniority, likely priorities.
-2. Pick one specific observation about their company or role.
-3. Draft the email following [D1], [D2], [D3].
-4. Self-check against [H1], [H2], [H3], [D1], [D2]; revise if any fail.
+2. Pick one specific observation about the prospect's company.
+3. If no company context is given, pick a concrete observation about the role instead.
+4. Draft the email following [D1], [D2], [D3].
+5. Self-check against [H1], [H2], [H3], [D1], [D2]; revise if any fail.
 
 ## Routing
 
@@ -179,9 +180,10 @@ company context, produce a short, specific email that earns a reply.
 ## Procedure
 
 1. Read the prospect profile; identify role, seniority, likely priorities.
-2. Pick one specific observation about their company or role.
-3. Draft the email following [D1], [D2], [D3].
-4. Self-check against [H1], [H2], [H3], [D1], [D2]; revise if any fail.
+2. Pick one specific observation about the prospect's company.
+3. If no company context is given, pick a concrete observation about the role instead.
+4. Draft the email following [D1], [D2], [D3].
+5. Self-check against [H1], [H2], [H3], [D1], [D2]; revise if any fail.
 
 ## Routing
 
@@ -257,7 +259,12 @@ guessing whether the changes helped.
 agentmd new <name> [--dir <path>]
 agentmd lint <file> [--watch]
 agentmd render <file> [--out <path>]
-agentmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>] [--watch]
+agentmd test <file> --fixtures <path>
+                    [--via <api|claude-code>] [--model <id>]
+                    [--temperature <n>] [--concurrency <n>]
+                    [--format <text|json>] [--out <path>]
+                    [--baseline <path>] [--verbose] [--watch]
+agentmd diff <old.md> <new.md>
 ```
 
 - `new` — scaffold `<name>.md` + `fixtures/<name>.yml` as a starting point.
@@ -266,8 +273,22 @@ agentmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>] [
   explicit "must never be violated" / "may be overridden…" scope labels.
 - `test` — run fixture cases through the compiled prompt and report per-rule
   adherence.
+- `diff` — structural diff of rule sets between two prompt files (added,
+  removed, scope-changed, claim-changed, why-changed). Useful in PR review
+  when a teammate changes an agent's rules.
 
 Add `--watch` to `lint` or `test` to re-run on file changes.
+
+Determinism: `--temperature` defaults to 0 for `--via api` so adherence
+numbers don't drift between runs. `--via claude-code` ignores the flag
+because `claude -p` has no such option — for repeatable measurement, use
+the api backend. `--concurrency N` runs up to N fixture cases in parallel
+(default 1).
+
+Baselines: write a JSON report with `--format json --out baseline.json`,
+then on a later run pass `--baseline baseline.json`. The diff compares
+per-rule adherence and exits non-zero if any rule regressed. This is the
+shape of the real iteration loop — tighten a rule, re-run, see the delta.
 
 ### Test backends
 
@@ -326,6 +347,8 @@ isn't on `PATH`).
 | L7 | warning | Procedure steps stay short (≤ ~15 words) |
 | L8 | warning | Routing tables include a fallback row |
 | L9 | error/warning | Required sections present (Agent heading, Procedure, at least one rule) |
+| L10 | warning | Every defined rule is referenced somewhere in Procedure or Routing |
+| L11 | warning | `why:` has at least ~5 words — rationale thinner than that can't guide edge cases |
 
 Deliberately **not** checked: vague-word heuristics. They produce false
 positives on real prose and miss the actual bugs.
@@ -361,8 +384,8 @@ serialised as YAML (objects). Each expectation ties a rule ID to a check.
 | `word_count_le` | number | output has at most N words |
 | `word_count_ge` | number | output has at least N words |
 | `char_count_le` | number | output has at most N characters |
-| `does_not_contain` | string or list | none of the substrings appear (case-insensitive) |
-| `contains_all` | string or list | all substrings appear (case-insensitive) |
+| `does_not_contain` | string or list | none of the substrings appear (case-insensitive). Set `mode: regex` to match patterns instead |
+| `contains_all` | string or list | all substrings appear (case-insensitive). Set `mode: regex` to match patterns instead |
 | `regex` | string | pattern matches somewhere in the output |
 | `llm_judge` | (uses `prompt:`) | a small model answers yes/no against your question |
 

@@ -142,3 +142,57 @@ A description.
   const errors = d.filter((x) => x.severity === "error");
   assert.equal(errors.length, 0, JSON.stringify(d, null, 2));
 });
+
+test("L10: orphan rule (defined but never referenced)", () => {
+  const src = `# Agent: a
+
+## Hard limits
+
+- [H1] used rule
+  why: motivated by a concrete failure mode in production
+- [H2] unused rule
+  why: motivated by a concrete failure mode in production
+
+## Procedure
+
+1. do the thing per [H1]
+`;
+  const d = lintSource(src);
+  const l10 = d.filter((x) => x.code === "L10");
+  assert.equal(l10.length, 1, JSON.stringify(d, null, 2));
+  assert.match(l10[0].message, /\[H2\]/);
+});
+
+test("L11: thin why triggers a warning", () => {
+  const src = `# Agent: a
+
+## Hard limits
+
+- [H1] do a thing per [H1]
+  why: yes
+
+## Procedure
+
+1. reference [H1]
+`;
+  const d = lintSource(src);
+  const l11 = d.filter((x) => x.code === "L11");
+  assert.equal(l11.length, 1);
+  assert.match(l11[0].message, /1 word/);
+});
+
+test("L11: ≥5 word why passes", () => {
+  const src = `# Agent: a
+
+## Hard limits
+
+- [H1] do a thing
+  why: this is a concrete motivation we can cite
+
+## Procedure
+
+1. do the thing per [H1]
+`;
+  const d = lintSource(src);
+  assert.ok(!d.some((x) => x.code === "L11"));
+});

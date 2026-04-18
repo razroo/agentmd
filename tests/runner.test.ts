@@ -102,6 +102,43 @@ test("run: fixture agent matching the doc passes validation", async () => {
   assert.equal(r.agent, "echo-agent");
 });
 
+test("run: executes cases in parallel up to --concurrency", async () => {
+  const doc = parse(DOC);
+  let active = 0;
+  let maxActive = 0;
+  const agent = async () => {
+    active++;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((r) => setTimeout(r, 20));
+    active--;
+    return "ok";
+  };
+  const fixtures: Fixtures = {
+    cases: Array.from({ length: 6 }, (_, i) => ({
+      name: `c${i}`,
+      input: "x",
+      expectations: [],
+    })),
+  };
+  const r = await run(doc, fixtures, { agent, concurrency: 3 });
+  assert.equal(r.cases.length, 6);
+  assert.ok(maxActive >= 2, `expected parallelism; maxActive was ${maxActive}`);
+  assert.ok(maxActive <= 3, `expected concurrency cap of 3; saw ${maxActive}`);
+});
+
+test("run: embeds meta (via, model, temperature, timestamp)", async () => {
+  const doc = parse(DOC);
+  const agent = async () => "ok";
+  const r = await run(doc, { cases: [] }, {
+    agent,
+    meta: { via: "api", model: "m", judgeModel: "j", temperature: 0 },
+  });
+  assert.equal(r.meta.via, "api");
+  assert.equal(r.meta.model, "m");
+  assert.equal(r.meta.temperature, 0);
+  assert.ok(r.meta.timestamp.match(/^\d{4}-\d{2}-\d{2}T/));
+});
+
 test("report: flags rules with no fixture expectations", async () => {
   const src = `# Agent: r
 \n## Hard limits\n\n- [H1] one\n  why: x\n- [H2] two\n  why: y\n\n## Procedure\n\n1. step\n`;

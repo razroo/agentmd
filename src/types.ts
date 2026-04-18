@@ -39,3 +39,13 @@ export interface Diagnostic {
   message: string;
   line?: number;
 }
+
+export type Backend = "api" | "claude-code" | "fake";
+
+export interface RunMeta {
+  via: Backend;
+  model: string | null;
+  judgeModel: string | null;
+  temperature: number | null;
+  timestamp: string;
+}

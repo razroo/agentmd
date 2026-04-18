@@ -24,9 +24,10 @@ company context, produce a short, specific email that earns a reply.
 ## Procedure
 
 1. Read the prospect profile; identify role, seniority, likely priorities.
-2. Pick one specific observation about their company or role.
-3. Draft the email following [D1], [D2], [D3].
-4. Self-check against [H1], [H2], [H3], [D1], [D2]; revise if any fail.
+2. Pick one specific observation about the prospect's company.
+3. If no company context is given, pick a concrete observation about the role instead.
+4. Draft the email following [D1], [D2], [D3].
+5. Self-check against [H1], [H2], [H3], [D1], [D2]; revise if any fail.
 
 ## Routing
 

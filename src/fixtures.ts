@@ -54,6 +54,18 @@ export function loadFixtures(path: string): Fixtures {
           `Expectation for rule [${e.rule}] in case "${c.name}" uses check "${e.check}" but is missing a "value:" field`,
         );
       }
+      if (e.mode !== undefined) {
+        if (e.mode !== "substring" && e.mode !== "regex") {
+          throw new Error(
+            `Expectation for rule [${e.rule}] in case "${c.name}" has unknown mode "${e.mode}" — valid modes: substring, regex`,
+          );
+        }
+        if (e.check !== "does_not_contain" && e.check !== "contains_all") {
+          throw new Error(
+            `Expectation for rule [${e.rule}] in case "${c.name}" sets mode on check "${e.check}" — mode is only valid on does_not_contain and contains_all`,
+          );
+        }
+      }
     }
   }
   return parsed as Fixtures;

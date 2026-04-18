@@ -74,3 +74,53 @@ test("regex check with invalid pattern fails gracefully", async () => {
   assert.equal(r.passed, false);
   assert.match(r.detail, /invalid regex/);
 });
+
+test("does_not_contain regex mode matches patterns", async () => {
+  const fail = await runCheck(
+    {
+      rule: "D2",
+      check: "does_not_contain",
+      mode: "regex",
+      value: ["Worth grabbing.*\\?", "Would you be open.*\\?"],
+    },
+    "Worth grabbing 15 minutes next week?",
+  );
+  assert.equal(fail.passed, false);
+  assert.match(fail.detail, /forbidden pattern/);
+
+  const pass = await runCheck(
+    {
+      rule: "D2",
+      check: "does_not_contain",
+      mode: "regex",
+      value: ["Worth grabbing.*\\?"],
+    },
+    "Can we meet Tuesday at 2pm ET?",
+  );
+  assert.equal(pass.passed, true);
+});
+
+test("contains_all regex mode requires every pattern to match", async () => {
+  const pass = await runCheck(
+    {
+      rule: "D1",
+      check: "contains_all",
+      mode: "regex",
+      value: ["\\bAcme\\b", "\\d+ microservices"],
+    },
+    "Acme runs 200 microservices on GKE.",
+  );
+  assert.equal(pass.passed, true);
+
+  const fail = await runCheck(
+    {
+      rule: "D1",
+      check: "contains_all",
+      mode: "regex",
+      value: ["\\bAcme\\b", "\\d+ microservices"],
+    },
+    "Acme is a company.",
+  );
+  assert.equal(fail.passed, false);
+  assert.match(fail.detail, /microservices/);
+});

@@ -7,11 +7,14 @@ export type CheckType =
   | "regex"
   | "llm_judge";
 
+export type MatchMode = "substring" | "regex";
+
 export interface Expectation {
   rule: string;
   check: CheckType;
   value?: unknown;
   prompt?: string;
+  mode?: MatchMode;
 }
 
 export interface CheckResult {
@@ -48,6 +51,22 @@ export async function runCheck(
     }
     case "does_not_contain": {
       const values = Array.isArray(exp.value) ? exp.value : [exp.value];
+      if (exp.mode === "regex") {
+        for (const v of values) {
+          const pattern = String(v);
+          let re: RegExp;
+          try {
+            re = new RegExp(pattern, "i");
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return { passed: false, detail: `invalid regex /${pattern}/: ${msg}` };
+          }
+          if (re.test(output)) {
+            return { passed: false, detail: `found forbidden pattern: /${pattern}/i` };
+          }
+        }
+        return { passed: true, detail: `none of ${values.length} forbidden patterns matched` };
+      }
       const hit = values.find((v) =>
         output.toLowerCase().includes(String(v).toLowerCase()),
       );
@@ -58,6 +77,24 @@ export async function runCheck(
     }
     case "contains_all": {
       const values = Array.isArray(exp.value) ? exp.value : [exp.value];
+      if (exp.mode === "regex") {
+        const missing: string[] = [];
+        for (const v of values) {
+          const pattern = String(v);
+          let re: RegExp;
+          try {
+            re = new RegExp(pattern, "i");
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return { passed: false, detail: `invalid regex /${pattern}/: ${msg}` };
+          }
+          if (!re.test(output)) missing.push(pattern);
+        }
+        if (missing.length) {
+          return { passed: false, detail: `missing required patterns: ${missing.map((m) => `/${m}/i`).join(", ")}` };
+        }
+        return { passed: true, detail: `all ${values.length} required patterns matched` };
+      }
       const missing = values.filter(
         (v) => !output.toLowerCase().includes(String(v).toLowerCase()),
       );

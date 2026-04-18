@@ -28,7 +28,8 @@ the file doubles as a fixture schema reference.
 
 1. Read the user input.
 2. Emit `ECHO ` followed by the input words.
-3. Self-check against [H1], [H2], [H3], [D1], [D2], [D3].
+3. Keep tone neutral per [D4].
+4. Self-check against [H1], [H2], [H3], [D1], [D2], [D3].
 
 ## Routing
 

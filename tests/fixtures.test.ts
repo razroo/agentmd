@@ -76,3 +76,43 @@ test("loadFixtures: llm_judge must have a prompt field", () => {
 `);
   assert.throws(() => loadFixtures(path), /missing a "prompt:" field/);
 });
+
+test("loadFixtures: mode regex on does_not_contain is accepted", () => {
+  const path = writeTemp(`cases:
+  - name: c
+    input: x
+    expectations:
+      - rule: H1
+        check: does_not_contain
+        mode: regex
+        value: ["Worth grabbing.*\\\\?"]
+`);
+  const fx = loadFixtures(path);
+  assert.equal(fx.cases[0].expectations[0].mode, "regex");
+});
+
+test("loadFixtures: rejects unknown mode", () => {
+  const path = writeTemp(`cases:
+  - name: c
+    input: x
+    expectations:
+      - rule: H1
+        check: does_not_contain
+        mode: exact
+        value: ["x"]
+`);
+  assert.throws(() => loadFixtures(path), /unknown mode "exact"/);
+});
+
+test("loadFixtures: mode is rejected on unsupported checks", () => {
+  const path = writeTemp(`cases:
+  - name: c
+    input: x
+    expectations:
+      - rule: H1
+        check: word_count_le
+        mode: regex
+        value: 5
+`);
+  assert.throws(() => loadFixtures(path), /mode is only valid on/);
+});
