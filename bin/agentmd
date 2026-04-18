@@ -1,3 +1,31 @@
-#!/usr/bin/env sh
-DIR="$(cd "$(dirname "$0")/.." && pwd)"
-exec "$DIR/node_modules/.bin/tsx" "$DIR/src/cli.ts" "$@"
+#!/usr/bin/env node
+// Executable shim: runs the TS entrypoint via tsx. Resolves tsx through
+// Node's module resolution so it works whether npm installs tsx nested
+// (inside the package) or flattened (at the consumer's top-level
+// node_modules).
+import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const require = createRequire(import.meta.url);
+const here = dirname(fileURLToPath(import.meta.url));
+const entry = resolve(here, "..", "src", "cli.ts");
+
+const tsxPkgPath = require.resolve("tsx/package.json");
+const tsxPkg = require(tsxPkgPath);
+const tsxBinRel =
+  typeof tsxPkg.bin === "string" ? tsxPkg.bin : tsxPkg.bin?.tsx;
+if (!tsxBinRel) {
+  console.error("agentmd: could not locate tsx bin entry in its package.json");
+  process.exit(1);
+}
+const tsxBin = resolve(dirname(tsxPkgPath), tsxBinRel);
+
+const child = spawn(process.execPath, [tsxBin, entry, ...process.argv.slice(2)], {
+  stdio: "inherit",
+});
+child.on("exit", (code, signal) => {
+  if (signal) process.kill(process.pid, signal);
+  else process.exit(code ?? 0);
+});

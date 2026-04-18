@@ -1,0 +1,57 @@
+name: Release
+
+# Publish @razroo/agentmd to npm when a GitHub Release is published.
+#
+# One-time setup before the first run:
+#   1. Create an npm automation token with publish rights on @razroo/*
+#      (scoped tokens: https://docs.npmjs.com/creating-and-viewing-access-tokens).
+#   2. Add it as the repository secret NPM_TOKEN.
+#   3. Ensure the npm org "razroo" exists and your token can publish into it.
+#
+# Cutting a release:
+#   1. Bump the version in package.json (e.g. `npm version patch`).
+#   2. Commit and push the bump.
+#   3. Tag and create the release on GitHub — the tag should be `v<version>`,
+#      e.g. `v0.2.0`. The "publish" step will refuse to run if the tag
+#      doesn't match package.json's version, so this stays honest.
+#   4. Publishing the release fires this workflow.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write  # needed for npm provenance attestation
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify release tag matches package.json version
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF#refs/tags/}"
+          TAG_VERSION="${TAG#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match release tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: Run full CI suite (typecheck + tests + example lint)
+        run: npm run ci
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
