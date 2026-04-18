@@ -75,6 +75,101 @@ Every rule needs `[ID]` and a `why:`. The why is load-bearing: when the agent
 hits an edge case, the rationale is how it decides. Rules without a why are a
 lint error.
 
+## Example — a real file, end to end
+
+Here's the full `examples/outreach-writer.md` that ships in this repo. It's
+been iterated against the adherence harness until Claude Haiku 4.5 hits 8/8
+on the fixture cases in `examples/fixtures/outreach-writer.yml`:
+
+```markdown
+# Agent: outreach-writer
+
+Cold outbound email writer for B2B sales. Given a prospect profile and optional
+company context, produce a short, specific email that earns a reply.
+
+## Hard limits
+
+- [H1] Produce at most 140 words in the email body.
+  why: emails over 140 words have under 2% reply rate in our historical data
+- [H2] Never fabricate metrics, customer names, or company facts.
+  why: 2025-11 incident — fabricated ARR figure in outbound email, lost the deal
+- [H3] Do not use placeholder tokens like [Company] or {name} in the output.
+  why: placeholders leak when the copy is pasted straight into a send tool
+
+## Defaults
+
+- [D1] When company_context is provided, name the prospect's company in the first sentence and reference one specific fact from that context. Without company_context, open with a concrete observation about the prospect's role or seniority.
+  why: naming the company signals the email was written for them; ESPs flag generic openers ("Hope you're well") as spam
+- [D2] End with exactly one direct ask: propose a 15-minute call with two specific time windows (e.g., "Tuesday 10am or Thursday 2pm ET?"). Do not hedge ("Worth grabbing…?", "Would you be open…?"). Do not add a second open question after the ask.
+  why: hedged phrasing reads as unsure; multiple asks dilute intent and reply rate drops
+- [D3] Write in four short paragraphs, one idea per paragraph.
+  why: small screens and quick skims — paragraphs over 3 lines get skipped
+
+## Procedure
+
+1. Read the prospect profile; identify role, seniority, likely priorities.
+2. Pick one specific observation about their company or role.
+3. Draft the email following [D1], [D2], [D3].
+4. Self-check against [H1], [H2], [H3], [D1], [D2]; revise if any fail.
+
+## Routing
+
+| When | Do |
+|------|-----|
+| Prospect is IC engineer | Lead with a technical observation |
+| Prospect is director or VP | Lead with a business-outcome framing |
+| No company_context provided | Use only role-level framing; do not invent company facts |
+| otherwise | Default to role-level framing |
+
+## Output format
+
+Return just the email body. No subject line, no signature block, no preamble
+like "Here is the email:". Plain text, no markdown.
+```
+
+A representative output Haiku produced during the last adherence run
+(input: senior backend engineer at Acme, Go + Kubernetes, company context
+about 200+ microservices on GKE and recent layoffs):
+
+```
+At Acme, managing 200+ microservices on GKE means your team is likely
+bottlenecked on deployment velocity or debugging cross-service issues—I
+work with senior engineers at scale who tell us these are the top
+constraints.
+
+With recent headcount changes, that pressure probably got tighter. We help
+teams ship faster and automate infrastructure work so you do more with
+less.
+
+We built this specifically for Go services in Kubernetes. Happy to walk
+through how it works for your setup.
+
+Could we grab 15 minutes Tuesday 2pm or Thursday 10am ET?
+```
+
+Naming Acme and citing a specific fact satisfies `[D1]`; closing with one
+direct two-window ask satisfies `[D2]`; 88 words stays under `[H1]`; no
+fabricated numbers satisfies `[H2]`. The full report the harness produces
+is further down under [Report](#report).
+
+### The iteration loop this unlocks
+
+The reason to write prompts this way isn't the syntax — it's that rule
+changes produce a measurable number. An earlier version of this file had:
+
+```markdown
+- [D1] Open with a specific observation about the prospect's company or role.
+- [D2] Close with one concrete next step (a 15-min call or a link).
+```
+
+Against the fixtures, that scored 6/8 (75%): `[D1]` 0/1 (no company name),
+`[D2]` 1/2 (one case closed with a hedged "Worth grabbing…?"). Tightening
+`[D1]` to "name the company in the first sentence when context is
+provided" and `[D2]` to "exactly one direct ask with two specific time
+windows" — plus adding `[D1]` and `[D2]` to the self-check in step 4 —
+moved the score to 8/8 (100%) in one rerun. Without the harness you'd be
+guessing whether the changes helped.
+
 ## CLI
 
 ```
