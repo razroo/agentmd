@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parse, extractIdReferences } from "../src/parser.ts";
+import { parse, extractIdReferences } from "../src/parser.js";
 
 const SAMPLE = `# Agent: test-agent
 

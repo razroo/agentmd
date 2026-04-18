@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { adherenceByRule } from "./report.ts";
-import type { RunResult } from "./runner.ts";
+import { adherenceByRule } from "./report.js";
+import type { RunResult } from "./runner.js";
 
 export interface HistoryEntry {
   path: string;

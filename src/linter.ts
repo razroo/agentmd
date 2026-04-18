@@ -1,5 +1,5 @@
-import type { Diagnostic, Doc, Rule } from "./types.ts";
-import { extractIdReferences } from "./parser.ts";
+import type { Diagnostic, Doc, Rule } from "./types.js";
+import { extractIdReferences } from "./parser.js";
 
 const FALLBACK_WORDS = ["default", "else", "otherwise", "fallback", "no match", "any other"];
 

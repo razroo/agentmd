@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { formatHistory, loadHistory } from "../src/history.ts";
-import type { RunResult } from "../src/runner.ts";
+import { formatHistory, loadHistory } from "../src/history.js";
+import type { RunResult } from "../src/runner.js";
 
 function makeReport(timestamp: string, rules: Array<[string, boolean]>): RunResult {
   return {

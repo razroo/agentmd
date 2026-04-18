@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runCheck } from "../src/checks.ts";
+import { runCheck } from "../src/checks.js";
 
 test("word_count_le pass and fail", async () => {
   const pass = await runCheck({ rule: "H1", check: "word_count_le", value: 5 }, "one two three");

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadFixtures } from "../src/fixtures.ts";
+import { loadFixtures } from "../src/fixtures.js";
 
 function writeTemp(contents: string): string {
   const dir = mkdtempSync(join(tmpdir(), "agentmd-fixtures-"));

@@ -1,25 +1,26 @@
+#!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
-import { loadDotEnv } from "./env.ts";
-import { parse } from "./parser.ts";
-import { lint, formatDiagnostic } from "./linter.ts";
-import { render } from "./render.ts";
-import { loadFixtures } from "./fixtures.ts";
-import { run } from "./runner.ts";
+import { loadDotEnv } from "./env.js";
+import { parse } from "./parser.js";
+import { lint, formatDiagnostic } from "./linter.js";
+import { render } from "./render.js";
+import { loadFixtures } from "./fixtures.js";
+import { run } from "./runner.js";
 import {
   formatBaselineDiff,
   formatReport,
   overallPassed,
   overallPercentage,
   toJSON,
-} from "./report.ts";
-import { DEFAULT_TEMPERATURE, makeAgent, makeJudge } from "./anthropic.ts";
-import { makeClaudeCodeAgent, makeClaudeCodeJudge } from "./claude-code.ts";
-import { diffPrompts, formatDiff } from "./diff.ts";
-import { formatHistory, loadHistory } from "./history.ts";
-import type { AgentFn, JudgeFn } from "./anthropic.ts";
-import type { Backend, RunMeta } from "./types.ts";
-import type { ProgressFn, RunResult } from "./runner.ts";
+} from "./report.js";
+import { DEFAULT_TEMPERATURE, makeAgent, makeJudge } from "./anthropic.js";
+import { makeClaudeCodeAgent, makeClaudeCodeJudge } from "./claude-code.js";
+import { diffPrompts, formatDiff } from "./diff.js";
+import { formatHistory, loadHistory } from "./history.js";
+import type { AgentFn, JudgeFn } from "./anthropic.js";
+import type { Backend, RunMeta } from "./types.js";
+import type { ProgressFn, RunResult } from "./runner.js";
 
 const USAGE = `agentmd — structured markdown linter and adherence tester for agent prompts
 

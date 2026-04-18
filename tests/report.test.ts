@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatBaselineDiff, toJSON } from "../src/report.ts";
-import type { RunResult } from "../src/runner.ts";
+import { formatBaselineDiff, toJSON } from "../src/report.js";
+import type { RunResult } from "../src/runner.js";
 
 function makeResult(overrides: Partial<RunResult>): RunResult {
   return {

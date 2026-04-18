@@ -1,4 +1,4 @@
-import type { RunResult, CaseResult } from "./runner.ts";
+import type { RunResult, CaseResult } from "./runner.js";
 
 export interface FormatOptions {
   verbose?: boolean;

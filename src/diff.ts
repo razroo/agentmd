@@ -1,4 +1,4 @@
-import type { Doc, Rule } from "./types.ts";
+import type { Doc, Rule } from "./types.js";
 
 export interface PromptDiff {
   added: Rule[];

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
-import type { CheckType, Expectation } from "./checks.ts";
+import type { CheckType, Expectation } from "./checks.js";
 
 export interface FixtureCase {
   name: string;

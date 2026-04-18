@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parse } from "../src/parser.ts";
-import { run } from "../src/runner.ts";
-import { formatReport } from "../src/report.ts";
-import type { Fixtures } from "../src/fixtures.ts";
+import { parse } from "../src/parser.js";
+import { run } from "../src/runner.js";
+import { formatReport } from "../src/report.js";
+import type { Fixtures } from "../src/fixtures.js";
 
 const DOC = `# Agent: echo-agent
 

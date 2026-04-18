@@ -1,4 +1,4 @@
-import type { Doc } from "./types.ts";
+import type { Doc } from "./types.js";
 
 export function render(doc: Doc): string {
   const out: string[] = [];

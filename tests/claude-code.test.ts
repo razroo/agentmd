@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { makeClaudeCodeAgent, makeClaudeCodeJudge } from "../src/claude-code.ts";
+import { makeClaudeCodeAgent, makeClaudeCodeJudge } from "../src/claude-code.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FAKE = resolve(here, "fixtures/fake-claude.mjs");

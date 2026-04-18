@@ -2,19 +2,20 @@ name: Release
 
 # Publish @razroo/agentmd to npm when a GitHub Release is published.
 #
-# One-time setup before the first run:
-#   1. Create an npm automation token with publish rights on @razroo/*
-#      (scoped tokens: https://docs.npmjs.com/creating-and-viewing-access-tokens).
-#   2. Add it as the repository secret NPM_TOKEN.
-#   3. Ensure the npm org "razroo" exists and your token can publish into it.
+# One-time setup (NPM_TOKEN is shared across the razroo org):
+#   1. Confirm the org-level NPM_TOKEN secret has publish rights on @razroo/*.
+#   2. Ensure the npm org "razroo" exists and can accept the publish.
 #
-# Cutting a release:
-#   1. Bump the version in package.json (e.g. `npm version patch`).
-#   2. Commit and push the bump.
-#   3. Tag and create the release on GitHub — the tag should be `v<version>`,
-#      e.g. `v0.2.0`. The "publish" step will refuse to run if the tag
-#      doesn't match package.json's version, so this stays honest.
-#   4. Publishing the release fires this workflow.
+# Cutting a release (from your machine, via gh cli):
+#   npm version patch                     # bumps 0.1.0 → 0.1.1 and tags v0.1.1
+#   git push --follow-tags                # push the bump commit + the tag
+#   gh release create "v$(node -p "require('./package.json').version")" \
+#     --generate-notes \
+#     --title "v$(node -p "require('./package.json').version")"
+#
+# Publishing the release fires this workflow. The verify step refuses to
+# publish if the tag version doesn't match package.json, so a stale tag
+# won't ship an outdated version.
 
 on:
   release:
@@ -22,36 +23,37 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # needed for npm provenance attestation
+  id-token: write
 
 jobs:
   publish:
+    name: Publish to npm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
           cache: npm
 
-      - run: npm ci
-
-      - name: Verify release tag matches package.json version
+      - name: Verify tag matches package.json version
         run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG="${GITHUB_REF#refs/tags/}"
-          TAG_VERSION="${TAG#v}"
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::package.json version ($PKG_VERSION) does not match release tag ($TAG_VERSION)"
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $PKG"
             exit 1
           fi
 
-      - name: Run full CI suite (typecheck + tests + example lint)
-        run: npm run ci
+      - run: npm ci
 
-      - name: Publish to npm
-        run: npm publish --access public --provenance
+      - run: npm test
+
+      - run: npm run build
+
+      - name: Publish
+        run: npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

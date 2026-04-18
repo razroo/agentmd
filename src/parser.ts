@@ -1,4 +1,4 @@
-import type { Doc, Rule, ProcedureStep, RoutingRow, Scope } from "./types.ts";
+import type { Doc, Rule, ProcedureStep, RoutingRow, Scope } from "./types.js";
 
 const AGENT_HEADING = /^#\s+Agent:\s*(.+?)\s*$/;
 const H2 = /^##\s+(.+?)\s*$/;

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parse } from "../src/parser.ts";
-import { diffPrompts, formatDiff } from "../src/diff.ts";
+import { parse } from "../src/parser.js";
+import { diffPrompts, formatDiff } from "../src/diff.js";
 
 const OLD = `# Agent: a
 

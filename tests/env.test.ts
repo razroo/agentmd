@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadDotEnv } from "../src/env.ts";
+import { loadDotEnv } from "../src/env.js";
 
 function makeEnvDir(contents: string): string {
   const dir = mkdtempSync(join(tmpdir(), "agentmd-env-"));

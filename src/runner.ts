@@ -1,9 +1,9 @@
-import type { Doc, RunMeta } from "./types.ts";
-import type { Fixtures, FixtureCase } from "./fixtures.ts";
-import { formatInput } from "./fixtures.ts";
-import { render } from "./render.ts";
-import { runCheck } from "./checks.ts";
-import type { AgentFn, JudgeFn } from "./anthropic.ts";
+import type { Doc, RunMeta } from "./types.js";
+import type { Fixtures, FixtureCase } from "./fixtures.js";
+import { formatInput } from "./fixtures.js";
+import { render } from "./render.js";
+import { runCheck } from "./checks.js";
+import type { AgentFn, JudgeFn } from "./anthropic.js";
 
 export interface CaseCheckResult {
   rule: string;

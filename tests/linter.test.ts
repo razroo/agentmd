@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parse } from "../src/parser.ts";
-import { lint } from "../src/linter.ts";
+import { parse } from "../src/parser.js";
+import { lint } from "../src/linter.js";
 
 function lintSource(src: string) {
   return lint(parse(src));

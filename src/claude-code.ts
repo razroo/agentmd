@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
-import type { AgentFn, JudgeFn } from "./anthropic.ts";
+import type { AgentFn, JudgeFn } from "./anthropic.js";
 
 export interface ClaudeCodeOptions {
   model?: string;

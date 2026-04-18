@@ -1,22 +1,53 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  ci:
+  build:
+    name: Build & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: "22"
           cache: npm
 
       - run: npm ci
 
-      - run: npm run ci
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run lint:examples
+
+      - run: npm run build
+
+  self-lint:
+    name: Dogfood agentmd
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: agentmd lint (examples)
+        run: |
+          node dist/cli.js lint examples/outreach-writer.md
+          node dist/cli.js lint examples/minimal.md
