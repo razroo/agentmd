@@ -1,13 +1,13 @@
 {
-  "name": "better-markdown",
+  "name": "agentmd",
   "version": "0.1.0",
-  "description": "Structured markdown + adherence testing for LLM agent prompts",
+  "description": "Agent prompts as structured markdown, with a linter for structure and a harness that scores per-rule adherence — so iteration produces numbers, not vibes.",
   "type": "module",
   "bin": {
-    "bmd": "./bin/bmd"
+    "agentmd": "./bin/agentmd"
   },
   "scripts": {
-    "bmd": "tsx src/cli.ts",
+    "agentmd": "tsx src/cli.ts",
     "test": "node --test --import tsx tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

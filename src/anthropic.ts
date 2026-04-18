@@ -12,7 +12,7 @@ function client(): Anthropic {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       throw new Error(
-        "ANTHROPIC_API_KEY is not set. Export it in your shell or skip `bmd test` (use `bmd lint`/`bmd render` for offline work).",
+        "ANTHROPIC_API_KEY is not set. Export it in your shell or skip `agentmd test` (use `agentmd lint`/`agentmd render` for offline work).",
       );
     }
     _client = new Anthropic({ apiKey });

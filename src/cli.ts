@@ -10,12 +10,12 @@ import { makeAgent, makeJudge } from "./anthropic.ts";
 import { makeClaudeCodeAgent, makeClaudeCodeJudge } from "./claude-code.ts";
 import type { AgentFn, JudgeFn } from "./anthropic.ts";
 
-const USAGE = `bmd — structured markdown linter and adherence tester for agent prompts
+const USAGE = `agentmd — structured markdown linter and adherence tester for agent prompts
 
 usage:
-  bmd lint <file>
-  bmd render <file> [--out <path>]
-  bmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>] [--verbose]
+  agentmd lint <file>
+  agentmd render <file> [--out <path>]
+  agentmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>] [--verbose]
 
 commands:
   lint      validate structural conventions in the prompt file
@@ -24,10 +24,10 @@ commands:
 
 test backends (--via):
   api           call the Anthropic SDK directly (requires ANTHROPIC_API_KEY) [default]
-  claude-code   shell out to 'claude -p --bare' (uses your Claude Code login; no API key needed)
+  claude-code   shell out to 'claude -p' (uses your Claude Code login; no API key needed)
 
 env:
-  ANTHROPIC_API_KEY  required for \`bmd test --via api\`
+  ANTHROPIC_API_KEY  required for \`agentmd test --via api\`
 `;
 
 type Argv = {
@@ -72,7 +72,7 @@ async function main() {
   if (cmd === "lint") {
     const file = positional[0];
     if (!file) {
-      process.stderr.write(`usage: bmd lint <file>\n`);
+      process.stderr.write(`usage: agentmd lint <file>\n`);
       process.exit(2);
     }
     const abs = resolve(file);
@@ -94,7 +94,7 @@ async function main() {
   if (cmd === "render") {
     const file = positional[0];
     if (!file) {
-      process.stderr.write(`usage: bmd render <file> [--out <path>]\n`);
+      process.stderr.write(`usage: agentmd render <file> [--out <path>]\n`);
       process.exit(2);
     }
     const abs = resolve(file);
@@ -114,14 +114,14 @@ async function main() {
     const file = positional[0];
     const fixturesPath = typeof flags.fixtures === "string" ? flags.fixtures : null;
     if (!file || !fixturesPath) {
-      process.stderr.write(`usage: bmd test <file> --fixtures <path> [--model <id>]\n`);
+      process.stderr.write(`usage: agentmd test <file> --fixtures <path> [--model <id>]\n`);
       process.exit(2);
     }
     const doc = loadDoc(resolve(file));
     const diags = lint(doc);
     const errors = diags.filter((d) => d.severity === "error");
     if (errors.length) {
-      process.stderr.write(`refusing to run tests: file has ${errors.length} lint error(s). Run \`bmd lint ${file}\` first.\n`);
+      process.stderr.write(`refusing to run tests: file has ${errors.length} lint error(s). Run \`agentmd lint ${file}\` first.\n`);
       process.exit(2);
     }
     const fixtures = loadFixtures(resolve(fixturesPath));

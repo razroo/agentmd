@@ -1,4 +1,4 @@
-# better-markdown (`bmd`)
+# agentmd
 
 A structured-markdown format and CLI for writing LLM agent prompts — with a
 linter that checks what actually matters, and a fixture-driven adherence
@@ -13,12 +13,12 @@ Two ideas, both of which the usual "prompt DSL" approach gets wrong:
    routing tables with no fallback branch. Those are what this linter
    catches.
 2. **Measure adherence.** A prompt is only good if the model follows it.
-   `bmd test` ships fixture cases through the compiled prompt and reports
+   `agentmd test` ships fixture cases through the compiled prompt and reports
    per-rule pass rate — the only loop that tells you if a change made the
    prompt better or worse.
 
-No new syntax. Markdown stays markdown. `bmd` just adds a tight dialect and
-a test harness.
+No new syntax. Markdown stays markdown. `agentmd` just adds a tight dialect
+and a test harness.
 
 ## Install
 
@@ -78,9 +78,9 @@ lint error.
 ## CLI
 
 ```
-bmd lint <file>
-bmd render <file> [--out <path>]
-bmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>]
+agentmd lint <file>
+agentmd render <file> [--out <path>]
+agentmd test <file> --fixtures <path> [--via <api|claude-code>] [--model <id>]
 ```
 
 - `lint` — structural checks (see below). Exits non-zero on errors.
@@ -224,5 +224,5 @@ examples/
   fixtures/outreach-writer.yml
 
 tests/              node:test suites
-bin/bmd             tsx entry shim
+bin/agentmd         tsx entry shim
 ```
