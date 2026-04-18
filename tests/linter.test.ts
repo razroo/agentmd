@@ -51,7 +51,7 @@ test("L4: reference to undefined rule", () => {
   assert.ok(d.some((x) => x.code === "L4"));
 });
 
-test("L6: procedure step with 'and'", () => {
+test("L6: procedure step joining two imperative verbs", () => {
   const src = `# Agent: a
 
 ## Hard limits
@@ -65,6 +65,24 @@ test("L6: procedure step with 'and'", () => {
 `;
   const d = lintSource(src);
   assert.ok(d.some((x) => x.code === "L6"));
+});
+
+test("L6: procedure step listing nouns with 'and' does not trip", () => {
+  const src = `# Agent: a
+
+## Hard limits
+
+- [H1] thing
+  why: measured motivation that is long enough
+- [H2] other
+  why: another motivation that is long enough
+
+## Procedure
+
+1. Identify role, seniority, and priorities per [H1] and [H2]
+`;
+  const d = lintSource(src);
+  assert.ok(!d.some((x) => x.code === "L6"), JSON.stringify(d, null, 2));
 });
 
 test("L8: routing without fallback row", () => {

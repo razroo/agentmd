@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
+import { loadDotEnv } from "./env.ts";
 import { parse } from "./parser.ts";
 import { lint, formatDiagnostic } from "./linter.ts";
 import { render } from "./render.ts";
@@ -9,14 +10,16 @@ import {
   formatBaselineDiff,
   formatReport,
   overallPassed,
+  overallPercentage,
   toJSON,
 } from "./report.ts";
 import { DEFAULT_TEMPERATURE, makeAgent, makeJudge } from "./anthropic.ts";
 import { makeClaudeCodeAgent, makeClaudeCodeJudge } from "./claude-code.ts";
 import { diffPrompts, formatDiff } from "./diff.ts";
+import { formatHistory, loadHistory } from "./history.ts";
 import type { AgentFn, JudgeFn } from "./anthropic.ts";
 import type { Backend, RunMeta } from "./types.ts";
-import type { RunResult } from "./runner.ts";
+import type { ProgressFn, RunResult } from "./runner.ts";
 
 const USAGE = `agentmd — structured markdown linter and adherence tester for agent prompts
 
@@ -25,10 +28,13 @@ usage:
   agentmd render <file> [--out <path>]
   agentmd test <file> --fixtures <path>
                       [--via <api|claude-code>] [--model <id>]
-                      [--temperature <n>] [--concurrency <n>]
+                      [--temperature <n>] [--concurrency <n>] [--trials <n>]
+                      [--rule <ID>] [--fail-under <pct>]
                       [--format <text|json>] [--out <path>]
-                      [--baseline <path>] [--verbose] [--watch]
+                      [--baseline <path>] [--list]
+                      [--verbose] [--watch]
   agentmd diff <old.md> <new.md>
+  agentmd history <glob> [--rule <ID>]
   agentmd new <name> [--dir <path>]
 
 commands:
@@ -36,6 +42,7 @@ commands:
   render    emit the compiled prompt (the form the model sees)
   test      run fixture cases against the compiled prompt and report per-rule adherence
   diff      structural diff of rule sets between two prompt files
+  history   per-rule adherence trend across multiple JSON reports
   new       scaffold a starter agent file and fixture
 
 test backends (--via):
@@ -44,11 +51,16 @@ test backends (--via):
 
 notes:
   --temperature defaults to 0 for the api backend; ignored by claude-code (no such flag)
+  --trials N reports pass rate per case (useful when the backend is non-deterministic;
+  the api backend is deterministic at temp=0 so trials > 1 there just costs tokens)
+  --rule <ID> filters fixtures to expectations for that rule; skips cases with none left
+  --fail-under <pct> exits non-zero if overall adherence < pct (independent of --baseline)
+  --list parses and prints the test plan without calling the model
   --baseline expects a JSON report produced by an earlier --format json run; exits
   non-zero if any rule's adherence is lower than in the baseline
 
 env:
-  ANTHROPIC_API_KEY  required for \`agentmd test --via api\`
+  ANTHROPIC_API_KEY  required for \`agentmd test --via api\` (also read from .env)
 `;
 
 const SCAFFOLD_AGENT = (name: string) => `# Agent: ${name}
@@ -157,10 +169,15 @@ interface TestOnceOptions {
   judge: JudgeFn | undefined;
   meta: Partial<RunMeta>;
   concurrency: number;
+  trials: number;
+  ruleFilter: string | null;
+  failUnder: number | null;
   verbose: boolean;
   format: "text" | "json";
   outPath: string | null;
   baselinePath: string | null;
+  list: boolean;
+  progress: boolean;
 }
 
 function loadBaseline(path: string): RunResult | null {
@@ -202,6 +219,33 @@ async function runTestOnce(
     process.stdout.write(`error: ${err instanceof Error ? err.message : String(err)}\n`);
     return 1;
   }
+
+  if (opts.list) {
+    let totalCases = fixtures.cases.length;
+    let totalExpectations = 0;
+    const casesToRun: string[] = [];
+    for (const c of fixtures.cases) {
+      const exps = opts.ruleFilter
+        ? c.expectations.filter((e) => e.rule === opts.ruleFilter)
+        : c.expectations;
+      if (opts.ruleFilter && !exps.length) continue;
+      totalExpectations += exps.length;
+      casesToRun.push(`  - ${c.name} (${exps.length} expectation${exps.length === 1 ? "" : "s"})`);
+    }
+    const header = opts.ruleFilter
+      ? `plan (rule filter [${opts.ruleFilter}]): ${casesToRun.length}/${totalCases} cases, ${totalExpectations} expectations, ${opts.trials} trial${opts.trials === 1 ? "" : "s"} each, via ${opts.meta.via ?? "?"}`
+      : `plan: ${casesToRun.length} case${casesToRun.length === 1 ? "" : "s"}, ${totalExpectations} expectation${totalExpectations === 1 ? "" : "s"}, ${opts.trials} trial${opts.trials === 1 ? "" : "s"} each, via ${opts.meta.via ?? "?"}`;
+    process.stdout.write(header + "\n");
+    for (const line of casesToRun) process.stdout.write(line + "\n");
+    return 0;
+  }
+
+  const progress: ProgressFn | undefined = opts.progress
+    ? ({ caseIndex, totalCases, caseName }) => {
+        process.stderr.write(`[${caseIndex}/${totalCases}] ${caseName}\n`);
+      }
+    : undefined;
+
   let result;
   try {
     result = await run(doc, fixtures, {
@@ -209,6 +253,9 @@ async function runTestOnce(
       judge: opts.judge,
       meta: opts.meta,
       concurrency: opts.concurrency,
+      trials: opts.trials,
+      ruleFilter: opts.ruleFilter ?? undefined,
+      onCaseComplete: progress,
     });
   } catch (err) {
     process.stdout.write(`error: ${err instanceof Error ? err.message : String(err)}\n`);
@@ -237,6 +284,16 @@ async function runTestOnce(
         `\nregression: ${diff.regressedRules.map((r) => `[${r}]`).join(", ")}\n`,
       );
       regressed = true;
+    }
+  }
+
+  if (opts.failUnder !== null) {
+    const actual = overallPercentage(result);
+    if (actual < opts.failUnder) {
+      process.stdout.write(
+        `\nfail-under: overall ${actual}% < required ${opts.failUnder}%\n`,
+      );
+      return 1;
     }
   }
 
@@ -296,6 +353,7 @@ async function main() {
     process.stdout.write(USAGE);
     return;
   }
+  loadDotEnv();
   const { positional, flags } = parseArgs(rest);
 
   if (cmd === "lint") {
@@ -372,6 +430,29 @@ async function main() {
       concurrency = Math.floor(n);
     }
 
+    let trials = 1;
+    if (typeof flags.trials === "string") {
+      const n = Number(flags.trials);
+      if (!Number.isFinite(n) || n < 1) {
+        process.stderr.write(`invalid --trials value: ${flags.trials}\n`);
+        process.exit(2);
+      }
+      trials = Math.floor(n);
+    }
+
+    const ruleFilter = typeof flags.rule === "string" ? flags.rule : null;
+
+    let failUnder: number | null = null;
+    const failUnderFlag = flags["fail-under"];
+    if (typeof failUnderFlag === "string") {
+      const n = Number(failUnderFlag);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        process.stderr.write(`invalid --fail-under value: ${failUnderFlag} (expect 0-100)\n`);
+        process.exit(2);
+      }
+      failUnder = n;
+    }
+
     const formatFlag = typeof flags.format === "string" ? flags.format : "text";
     if (formatFlag !== "text" && formatFlag !== "json") {
       process.stderr.write(`unknown --format value: ${formatFlag} (expected 'text' or 'json')\n`);
@@ -406,15 +487,23 @@ async function main() {
     const outPath = typeof flags.out === "string" ? flags.out : null;
     const baselinePath = typeof flags.baseline === "string" ? flags.baseline : null;
 
+    const list = flags.list === true;
+    const progress = flags.progress !== false && !list && format !== "json";
+
     const testOpts: TestOnceOptions = {
       agent,
       judge,
       meta,
       concurrency,
+      trials,
+      ruleFilter,
+      failUnder,
       verbose,
       format,
       outPath,
       baselinePath,
+      list,
+      progress,
     };
 
     if (flags.watch === true) {
@@ -441,6 +530,22 @@ async function main() {
     const newDoc = loadDoc(resolve(newPath));
     const d = diffPrompts(oldDoc, newDoc);
     process.stdout.write(formatDiff(oldDoc.agent || oldPath, newDoc.agent || newPath, d));
+    return;
+  }
+
+  if (cmd === "history") {
+    if (!positional.length) {
+      process.stderr.write(`usage: agentmd history <report.json> [<report.json> ...] [--rule <ID>]\n`);
+      process.exit(2);
+    }
+    const ruleFilter = typeof flags.rule === "string" ? flags.rule : undefined;
+    try {
+      const entries = loadHistory(positional.map((p) => resolve(p)));
+      process.stdout.write(formatHistory(entries, { ruleFilter }));
+    } catch (err) {
+      process.stderr.write(`error: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exit(1);
+    }
     return;
   }
 

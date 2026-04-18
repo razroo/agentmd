@@ -261,10 +261,13 @@ agentmd lint <file> [--watch]
 agentmd render <file> [--out <path>]
 agentmd test <file> --fixtures <path>
                     [--via <api|claude-code>] [--model <id>]
-                    [--temperature <n>] [--concurrency <n>]
+                    [--temperature <n>] [--concurrency <n>] [--trials <n>]
+                    [--rule <ID>] [--fail-under <pct>]
                     [--format <text|json>] [--out <path>]
-                    [--baseline <path>] [--verbose] [--watch]
+                    [--baseline <path>] [--list]
+                    [--verbose] [--watch]
 agentmd diff <old.md> <new.md>
+agentmd history <report.json>...
 ```
 
 - `new` — scaffold `<name>.md` + `fixtures/<name>.yml` as a starting point.
@@ -276,6 +279,9 @@ agentmd diff <old.md> <new.md>
 - `diff` — structural diff of rule sets between two prompt files (added,
   removed, scope-changed, claim-changed, why-changed). Useful in PR review
   when a teammate changes an agent's rules.
+- `history` — takes multiple JSON reports (shell-globbed, e.g.
+  `reports/*.json`), sorts them by timestamp, and prints per-rule adherence
+  over time with a net delta.
 
 Add `--watch` to `lint` or `test` to re-run on file changes.
 
@@ -285,10 +291,28 @@ because `claude -p` has no such option — for repeatable measurement, use
 the api backend. `--concurrency N` runs up to N fixture cases in parallel
 (default 1).
 
+Iteration loop flags:
+
+- `--trials N` runs each case N times and reports pass rate per case
+  (`[D2] 3/5`). Main use case is the `claude-code` backend, where the
+  model's non-zero temperature makes single runs noisy. With `--via api`
+  at the default `--temperature 0`, trials > 1 just costs tokens.
+- `--rule <ID>` filters fixtures to expectations for a single rule. Cases
+  left with zero expectations are skipped. Use when iterating on one rule
+  to shave round-trips.
+- `--fail-under <pct>` exits non-zero if overall adherence drops below
+  the given percentage. Pairs with CI without needing a baseline file.
+- `--list` parses the agent file and fixtures and prints the test plan
+  without calling the model. Cheap smoke test while authoring.
+
 Baselines: write a JSON report with `--format json --out baseline.json`,
 then on a later run pass `--baseline baseline.json`. The diff compares
-per-rule adherence and exits non-zero if any rule regressed. This is the
-shape of the real iteration loop — tighten a rule, re-run, see the delta.
+per-rule adherence and exits non-zero if any rule regressed. Keep those
+JSON files in `reports/` and `agentmd history reports/*.json` gives you
+a trend line per rule across runs.
+
+Environment: `ANTHROPIC_API_KEY` is read from the environment or from a
+`.env` file in the working directory. Explicit exports win over `.env`.
 
 ### Test backends
 

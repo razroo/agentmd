@@ -3,6 +3,18 @@ import { extractIdReferences } from "./parser.ts";
 
 const FALLBACK_WORDS = ["default", "else", "otherwise", "fallback", "no match", "any other"];
 
+const IMPERATIVE_VERBS = new Set([
+  "read", "write", "draft", "emit", "pick", "identify", "check", "use", "return",
+  "output", "skip", "split", "revise", "validate", "compute", "parse", "render",
+  "run", "send", "fetch", "log", "save", "load", "append", "prepend", "replace",
+  "filter", "sort", "copy", "move", "delete", "apply", "compare", "store", "print",
+  "call", "invoke", "retry", "abort", "reject", "accept", "select", "generate",
+  "extract", "update", "set", "assign", "assert", "confirm", "require", "produce",
+  "self-check", "proceed", "stop", "continue", "verify", "mark", "flag", "record",
+  "report", "summarize", "summarise", "classify", "format", "normalize", "normalise",
+  "ask", "answer", "respond", "reply", "post", "commit", "push",
+]);
+
 export function lint(doc: Doc): Diagnostic[] {
   const diags: Diagnostic[] = [];
 
@@ -109,15 +121,23 @@ export function lint(doc: Doc): Diagnostic[] {
     ref(row.then, row.line);
   }
 
-  // L6: multi-action procedure steps
+  // L6: multi-action procedure steps — fires only when "and"/"or" joins two
+  // imperative verbs, not when it connects items in a list of nouns. The
+  // previous heuristic ("any and/or anywhere") produced false positives on
+  // prose like "identify role, seniority, and priorities".
   for (const step of doc.procedure) {
-    if (/\s+and\s+/i.test(step.text) || /\s+or\s+/i.test(step.text)) {
-      diags.push({
-        code: "L6",
-        severity: "warning",
-        message: `Step ${step.index} contains "and"/"or" — consider splitting into separate steps so the agent can track completion`,
-        line: step.line,
-      });
+    const re = /[,;]?\s+(and|or)\s+([a-z][a-z-]*)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(step.text)) !== null) {
+      if (IMPERATIVE_VERBS.has(m[2].toLowerCase())) {
+        diags.push({
+          code: "L6",
+          severity: "warning",
+          message: `Step ${step.index} joins two actions ("${m[1]} ${m[2]}…") — split into separate steps so the agent can track completion`,
+          line: step.line,
+        });
+        break;
+      }
     }
   }
 

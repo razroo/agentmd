@@ -48,12 +48,13 @@ test("run: executes all cases and checks with fake agent", async () => {
   assert.equal(result.cases.length, 2);
 
   const basic = result.cases[0];
-  assert.equal(basic.checks.length, 2);
-  assert.equal(basic.checks[0].passed, true);
-  assert.equal(basic.checks[1].passed, true);
+  assert.equal(basic.trials.length, 1);
+  assert.equal(basic.trials[0].checks.length, 2);
+  assert.equal(basic.trials[0].checks[0].passed, true);
+  assert.equal(basic.trials[0].checks[1].passed, true);
 
   const failing = result.cases[1];
-  assert.equal(failing.checks[0].passed, false);
+  assert.equal(failing.trials[0].checks[0].passed, false);
 });
 
 test("run: passes rendered system prompt to the agent", async () => {
@@ -124,6 +125,93 @@ test("run: executes cases in parallel up to --concurrency", async () => {
   assert.equal(r.cases.length, 6);
   assert.ok(maxActive >= 2, `expected parallelism; maxActive was ${maxActive}`);
   assert.ok(maxActive <= 3, `expected concurrency cap of 3; saw ${maxActive}`);
+});
+
+test("run: --trials N runs each case N times and aggregates per rule", async () => {
+  const doc = parse(DOC);
+  let call = 0;
+  const agent = async () => {
+    call += 1;
+    return call % 2 === 0 ? "one two three four five six" : "one two three four five";
+  };
+  const fixtures: Fixtures = {
+    cases: [
+      {
+        name: "case",
+        input: "x",
+        expectations: [{ rule: "H1", check: "word_count_le", value: 5 }],
+      },
+    ],
+  };
+  const result = await run(doc, fixtures, { agent, trials: 4 });
+  assert.equal(result.cases[0].trials.length, 4);
+  const passes = result.cases[0].trials.filter((t) => t.checks[0].passed).length;
+  assert.equal(passes, 2);
+});
+
+test("run: --rule filter drops non-matching expectations and empty cases", async () => {
+  const doc = parse(DOC);
+  const agent = async () => "ok";
+  const fixtures: Fixtures = {
+    cases: [
+      {
+        name: "c-H1",
+        input: "x",
+        expectations: [{ rule: "H1", check: "word_count_le", value: 100 }],
+      },
+      {
+        name: "c-mixed",
+        input: "x",
+        expectations: [
+          { rule: "H1", check: "word_count_le", value: 100 },
+          { rule: "D1", check: "word_count_le", value: 100 },
+        ],
+      },
+    ],
+  };
+  const docWithD1 = parse(`# Agent: echo-agent
+\n## Hard limits
+\n- [H1] thing
+  why: measured motivation that is long enough
+\n## Defaults
+\n- [D1] other
+  why: another motivation that is long enough
+
+## Procedure
+
+1. use [H1] and [D1]
+`);
+  const result = await run(docWithD1, fixtures, { agent, ruleFilter: "H1" });
+  assert.equal(result.cases.length, 2);
+  for (const c of result.cases) {
+    for (const t of c.trials) {
+      for (const ck of t.checks) {
+        assert.equal(ck.rule, "H1");
+      }
+    }
+  }
+});
+
+test("run: onCaseComplete fires once per case with index/total", async () => {
+  const doc = parse(DOC);
+  const agent = async () => "ok";
+  const events: { caseIndex: number; totalCases: number; caseName: string }[] = [];
+  const fixtures: Fixtures = {
+    cases: Array.from({ length: 3 }, (_, i) => ({
+      name: `c${i}`,
+      input: "x",
+      expectations: [],
+    })),
+  };
+  await run(doc, fixtures, {
+    agent,
+    onCaseComplete: ({ caseIndex, totalCases, caseName }) => {
+      events.push({ caseIndex, totalCases, caseName });
+    },
+  });
+  assert.equal(events.length, 3);
+  assert.deepEqual(events.map((e) => e.totalCases), [3, 3, 3]);
+  assert.deepEqual([...new Set(events.map((e) => e.caseIndex))].sort(), [1, 2, 3]);
 });
 
 test("run: embeds meta (via, model, temperature, timestamp)", async () => {

@@ -1,4 +1,4 @@
-import type { RunResult } from "./runner.ts";
+import type { RunResult, CaseResult } from "./runner.ts";
 
 export interface FormatOptions {
   verbose?: boolean;
@@ -19,14 +19,51 @@ export interface RuleAdherence {
 export function adherenceByRule(result: RunResult): Map<string, RuleAdherence> {
   const byRule = new Map<string, RuleAdherence>();
   for (const c of result.cases) {
-    for (const ck of c.checks) {
-      const entry = byRule.get(ck.rule) ?? { passed: 0, total: 0 };
-      entry.total += 1;
-      if (ck.passed) entry.passed += 1;
-      byRule.set(ck.rule, entry);
+    for (const t of c.trials) {
+      for (const ck of t.checks) {
+        const entry = byRule.get(ck.rule) ?? { passed: 0, total: 0 };
+        entry.total += 1;
+        if (ck.passed) entry.passed += 1;
+        byRule.set(ck.rule, entry);
+      }
     }
   }
   return byRule;
+}
+
+interface CheckKey {
+  rule: string;
+  check: string;
+}
+
+function checkKey(ck: CheckKey): string {
+  return `${ck.rule}::${ck.check}`;
+}
+
+function aggregateCaseChecks(c: CaseResult): Array<{
+  rule: string;
+  check: string;
+  passed: number;
+  total: number;
+  failureDetails: string[];
+}> {
+  const keys: string[] = [];
+  const buckets = new Map<string, { rule: string; check: string; passed: number; total: number; failureDetails: string[] }>();
+  for (const t of c.trials) {
+    for (const ck of t.checks) {
+      const k = checkKey(ck);
+      let b = buckets.get(k);
+      if (!b) {
+        b = { rule: ck.rule, check: ck.check, passed: 0, total: 0, failureDetails: [] };
+        buckets.set(k, b);
+        keys.push(k);
+      }
+      b.total += 1;
+      if (ck.passed) b.passed += 1;
+      else b.failureDetails.push(ck.detail);
+    }
+  }
+  return keys.map((k) => buckets.get(k)!);
 }
 
 export function formatReport(result: RunResult, opts: FormatOptions = {}): string {
@@ -44,15 +81,29 @@ export function formatReport(result: RunResult, opts: FormatOptions = {}): strin
   out.push("");
 
   for (const c of result.cases) {
-    out.push(`case: ${c.name}`);
+    const trials = c.trials.length;
+    const header = trials > 1 ? `case: ${c.name} (${trials} trials)` : `case: ${c.name}`;
+    out.push(header);
     if (opts.verbose) {
+      const firstOutput = c.trials[0]?.output ?? "";
       out.push("  output:");
-      out.push(indent(c.output, "    | "));
+      out.push(indent(firstOutput, "    | "));
+      if (trials > 1) out.push(`    (showing trial 1 of ${trials})`);
       out.push("");
     }
-    for (const ck of c.checks) {
-      const status = ck.passed ? "PASS" : "FAIL";
-      out.push(`  [${ck.rule}] ${ck.check.padEnd(18)} ${status}  ${ck.detail}`);
+    const agg = aggregateCaseChecks(c);
+    for (const a of agg) {
+      if (trials === 1) {
+        const passed = a.passed === a.total;
+        const status = passed ? "PASS" : "FAIL";
+        const detail = passed ? "" : a.failureDetails[0] ?? "";
+        out.push(`  [${a.rule}] ${a.check.padEnd(18)} ${status}  ${detail}`);
+      } else {
+        const pctVal = a.total > 0 ? Math.round((a.passed / a.total) * 100) : 0;
+        const flag = pctVal === 100 ? "" : pctVal >= 75 ? "  ~" : "  \u2190 attention";
+        const sample = a.failureDetails.length ? `  (e.g. ${a.failureDetails[0]})` : "";
+        out.push(`  [${a.rule}] ${a.check.padEnd(18)} ${a.passed}/${a.total} (${pctVal}%)${flag}${sample}`);
+      }
     }
     out.push("");
   }
@@ -63,9 +114,9 @@ export function formatReport(result: RunResult, opts: FormatOptions = {}): strin
   const rules = [...byRule.keys()].sort();
   for (const r of rules) {
     const { passed, total } = byRule.get(r)!;
-    const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
-    const flag = pct === 100 ? "" : pct >= 75 ? "  ~" : "  ← attention";
-    out.push(`  [${r}] ${passed}/${total} (${pct}%)${flag}`);
+    const pctVal = total > 0 ? Math.round((passed / total) * 100) : 0;
+    const flag = pctVal === 100 ? "" : pctVal >= 75 ? "  ~" : "  \u2190 attention";
+    out.push(`  [${r}] ${passed}/${total} (${pctVal}%)${flag}`);
   }
 
   const defined = result.definedRules ?? [];
@@ -85,9 +136,16 @@ export function formatReport(result: RunResult, opts: FormatOptions = {}): strin
 
 export function overallPassed(result: RunResult): boolean {
   for (const c of result.cases) {
-    for (const ck of c.checks) if (!ck.passed) return false;
+    for (const t of c.trials) {
+      for (const ck of t.checks) if (!ck.passed) return false;
+    }
   }
   return true;
+}
+
+export function overallPercentage(result: RunResult): number {
+  const t = totals(result);
+  return t.total > 0 ? Math.round((t.passed / t.total) * 100) : 0;
 }
 
 export function toJSON(result: RunResult): string {
@@ -146,9 +204,11 @@ function totals(result: RunResult): { passed: number; total: number } {
   let passed = 0;
   let total = 0;
   for (const c of result.cases) {
-    for (const ck of c.checks) {
-      total += 1;
-      if (ck.passed) passed += 1;
+    for (const t of c.trials) {
+      for (const ck of t.checks) {
+        total += 1;
+        if (ck.passed) passed += 1;
+      }
     }
   }
   return { passed, total };
